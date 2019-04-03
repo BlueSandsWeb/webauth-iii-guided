@@ -1,24 +1,23 @@
 const bcrypt = require('bcryptjs');
-
-const Users = require('../users/users-model.js');
+// bring in JWT
+const jwt = require('jsonwebtoken');
+const secrets = require('../api/secrets.js');
 
 module.exports = (req, res, next) => {
-  const { username, password } = req.headers;
+  // STEP 2.1: read token from authorization
+  const token = req.headers.authorization;
 
-  if (username && password) {
-    Users.findBy({ username })
-      .first()
-      .then(user => {
-        if (user && bcrypt.compareSync(password, user.password)) {
-          next();
-        } else {
-          res.status(401).json({ message: 'Invalid Credentials' });
-        }
-      })
-      .catch(error => {
-        res.status(500).json({ message: 'Ran into an unexpected error' });
-      });
+  // STEP 2.2: Check for token
+  if (token) {
+    jwt.verify(token, secrets.jwtSecret, (err, decodedToken) => {
+      if (err) { // the token is not valid
+        res.status(401).json({ message: 'Invalid Credentials' });
+      } else { // all good
+        // req.decodedJwt = decodedToken;  // makes the token info available to the rest of the application
+        next();
+      }
+    }) // have secret on the .env as a variable when in production
   } else {
-    res.status(400).json({ message: 'No credentials provided' });
+    res.status(401).json({ message: 'No token provided' }); // no token, no passage
   }
 };
